@@ -1,25 +1,12 @@
 /* src/App.css */
 
-/* --- Reset --- */
-body, html {
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  height: 100%;
-  overflow: hidden; /* Prevent body scrolling */
-}
-
-#root {
+/* This is the new main container that fixes the layout */
+.app-container {
   width: 100vw;
   height: 100vh;
   display: flex;
-  flex-direction: column; /* Main container is a column */
-}
-
-#canvas-container {
-  flex-grow: 1; /* Takes up all available space */
-  width: 100%;
-  position: relative; /* For the main canvas */
+  flex-direction: column;
+  overflow: hidden; /* Stop any scrolling */
 }
 
 /* For the loading/error messages */
@@ -32,38 +19,39 @@ body, html {
   background-color: #242424;
 }
 
-/* --- (NEW) Product Gallery Container --- */
+/* --- Product Gallery Container (Top) --- */
 .product-gallery-container {
   background: rgba(0, 0, 0, 0.7);
   padding: 10px;
-  max-height: 200px; /* Limit height to make it scrollable */
+  flex-shrink: 0; /* Stop this from shrinking */
+  max-height: 160px; /* Limit height */
   overflow-y: auto; /* Enable vertical scrolling */
-  display: flex; /* Use flexbox for the items */
-  flex-wrap: wrap; /* Allow items to wrap to the next line */
-  gap: 15px; /* Space between gallery items */
-  justify-content: center; /* Center items if they don't fill the row */
-  align-items: flex-start; /* Align items to the top */
+  display: flex;
+  flex-wrap: nowrap; /* Force a single, horizontal line */
+  overflow-x: auto; /* Enable horizontal scrolling */
+  gap: 15px;
+  align-items: flex-start;
   z-index: 10;
-  pointer-events: none; /* Let touches pass through the container */
-  position: relative;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1); /* Subtle separator */
+  pointer-events: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-/* --- (NEW) Individual Gallery Item --- */
+/* Individual Gallery Item */
 .gallery-item {
-  width: 120px; /* Fixed width for each item */
-  height: 140px; /* Fixed height for each item */
+  width: 120px;
+  height: 140px;
   background-color: #333;
   border-radius: 8px;
-  overflow: hidden; /* Hide anything outside the item box */
+  overflow: hidden;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: space-between; /* Space out title and model */
+  justify-content: flex-start; /* Align to the top */
   border: 2px solid transparent;
   transition: border-color 0.2s, background-color 0.2s;
-  pointer-events: auto; /* Make items clickable */
+  pointer-events: auto;
+  flex-shrink: 0; /* Stop items from shrinking */
 }
 
 .gallery-item:hover {
@@ -71,38 +59,44 @@ body, html {
 }
 
 .gallery-item.active {
-  border-color: #007bff; /* Highlight active item */
-  background-color: #007bff40; /* Slightly blue background */
+  border-color: #007bff;
+  background-color: #007bff40;
 }
 
-/* --- (NEW) Gallery Item Name --- */
+/* Gallery Item Name */
 .gallery-item-name {
   color: white;
   font-size: 0.8em;
-  padding: 5px 0;
+  padding: 5px;
   text-align: center;
-  white-space: normal; /* Allow name to wrap */
-  word-break: break-word; /* Break long words */
-  max-height: 30px; /* Limit height of name */
-  overflow: hidden; /* Hide overflow */
-  text-overflow: ellipsis; /* Add ellipsis for overflow */
-  margin-top: 5px;
+  white-space: normal;
+  word-break: break-word;
+  height: 30px; /* Fixed height for name */
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* --- (NEW) Gallery Model Canvas --- */
+/* Gallery Model Canvas */
 .gallery-model-canvas {
-  width: 100px; /* Size of the smaller canvas inside the item */
+  width: 100px;
   height: 100px;
-  background-color: #222; /* Darker background for the model area */
-  border-radius: 4px; /* Slightly rounded corners for the canvas */
-  flex-shrink: 0; /* Don't let it shrink */
+  background-color: #222;
+  border-radius: 4px;
+  margin-top: 5px;
+  flex-shrink: 0;
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
+/* --- Main Canvas Container (Middle) --- */
+#canvas-container {
+  flex-grow: 1; /* This is the key: fill all remaining space */
+  width: 100%;
+  position: relative; /* Must be relative for flex to work */
+}
 
-/* --- Bottom Controls Container (similar to before, but now has two buttons) --- */
+/* --- Bottom Controls Container (Bottom) --- */
 .controls-container {
   background: rgba(0, 0, 0, 0.7);
   padding: 15px;
@@ -111,12 +105,12 @@ body, html {
   justify-content: center;
   align-items: center;
   z-index: 10;
-  pointer-events: none; /* Let touches pass through the container */
-  position: relative; /* Important for being at the bottom of flex column */
-  border-top: 1px solid rgba(255, 255, 255, 0.1); /* Subtle separator */
+  pointer-events: none;
+  position: relative; /* Must be relative for flex to work */
+  flex-shrink: 0; /* Stop this from shrinking */
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-/* Make buttons in the container clickable */
 .controls-container > button {
   pointer-events: auto;
   padding: 12px 25px;
@@ -128,7 +122,6 @@ body, html {
   transition: background-color 0.2s;
 }
 
-/* Style for the Reset button */
 .reset-button {
   background-color: #e0e0e0;
   color: #333;
@@ -137,7 +130,6 @@ body, html {
   background-color: #d0d0d0;
 }
 
-/* Vercel's AR Button */
 .controls-container > button[aria-label="Enter AR"] {
   background-color: #007bff;
   color: white;

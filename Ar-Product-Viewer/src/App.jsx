@@ -8,10 +8,11 @@ import axios from 'axios';
 import * as THREE from 'three';
 import './App.css';
 
-// 1. Model component (Modified to expose controls for thumbnails)
-function Model({ modelPath, position = [0, 0, 0], rotation = [0, 0, 0], scale = 1, animate = false, ...props }) {
+// 1. Model component (Fixed for thumbnail scaling)
+function Model({ modelPath, position = [0, 0, 0], scale = 1, animate = false, ...props }) {
   const { scene, animations } = useGLTF(modelPath);
-  const { actions } = useAnimations(animations, scene);
+  const clonedScene = React.useMemo(() => scene.clone(), [scene]);
+  const { actions } = useAnimations(animations, clonedScene);
   const modelRef = useRef();
 
   useEffect(() => {
@@ -20,25 +21,27 @@ function Model({ modelPath, position = [0, 0, 0], rotation = [0, 0, 0], scale = 
         action.play();
         action.paused = false;
       } else {
-        action.play(); // Play once to reset
-        action.paused = true; // Then pause
+        action.play();
+        action.paused = true;
       }
     });
+  }, [actions, animate]);
 
-    if (modelRef.current) {
-      const box = new THREE.Box3().setFromObject(scene);
+  useEffect(() => {
+    if (modelRef.current && !animate) { 
+      const box = new THREE.Box3().setFromObject(modelRef.current);
       const center = box.getCenter(new THREE.Vector3());
       const size = box.getSize(new THREE.Vector3());
       const maxDim = Math.max(size.x, size.y, size.z);
-      const desiredScale = 0.8 / maxDim; 
-
-      modelRef.current.position.set(-center.x * desiredScale, -center.y * desiredScale, -center.z * desiredScale);
-      modelRef.current.scale.set(desiredScale, desiredScale, desiredScale);
+      if (maxDim > 0) { 
+        const desiredScale = 0.8 / maxDim;
+        modelRef.current.scale.set(desiredScale, desiredScale, desiredScale);
+        modelRef.current.position.set(-center.x * desiredScale, -center.y * desiredScale, -center.z * desiredScale);
+      }
     }
+  }, [clonedScene, animate]);
 
-  }, [actions, animate, scene]);
-
-  return <primitive ref={modelRef} object={scene.clone()} {...props} />;
+  return <primitive ref={modelRef} object={clonedScene} {...props} />;
 }
 
 // 2. Reticle component (unchanged)
@@ -52,7 +55,7 @@ const Reticle = forwardRef((props, ref) => {
 });
 Reticle.displayName = 'Reticle';
 
-// 3. Scene component (main 3D/AR view)
+// 3. Scene component (unchanged)
 function Scene({ modelPath, placedPosition, setPlacedPosition }) {
   const { isPresenting } = useXR();
   const reticleRef = useRef();
@@ -80,23 +83,21 @@ function Scene({ modelPath, placedPosition, setPlacedPosition }) {
       <directionalLight position={[10, 10, 5]} intensity={2} />
       <Suspense fallback={null}>
         {!isPresenting && (
-          // Desktop/3D Mode
           <>
-            <Model modelPath={modelPath} position={[0, -0.5, 0]} />
+            <Model modelPath={modelPath} position={[0, -0.5, 0]} animate={false} />
             <OrbitControls enablePan={true} enableZoom={true} />
           </>
         )}
         {isPresenting && (
-          // AR Mode
           <>
             {placedPosition ? (
               <group position={placedPosition}>
-                <Model modelPath={modelPath} />
+                <Model modelPath={modelPath} animate={false} />
               </group>
             ) : (
               <Interactive onSelect={onSelect}>
                 <Reticle ref={reticleRef} />
-              </Interactive> 
+              </Interactive>
             )}
           </>
         )}
@@ -105,7 +106,7 @@ function Scene({ modelPath, placedPosition, setPlacedPosition }) {
   );
 }
 
-// (NEW) Thumbnail Component - Renders a mini 3D model
+// 4. Thumbnail Component (unchanged)
 function Thumbnail({ product, isActive, onClick }) {
   return (
     <div
@@ -114,7 +115,7 @@ function Thumbnail({ product, isActive, onClick }) {
       onPointerDown={(e) => e.stopPropagation()} 
     >
       <div className="gallery-model-canvas">
-        <Canvas camera={{ position: [0, 0, 3], fov: 75 }}>
+        <Canvas camera={{ position: [0, 0, 1.5], fov: 75 }}>
           <ambientLight intensity={0.8} />
           <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={1} />
           <pointLight position={[-10, -10, -10]} intensity={0.5} />
@@ -130,7 +131,7 @@ function Thumbnail({ product, isActive, onClick }) {
 }
 
 
-// 4. App component
+// 5. App component (FIXED)
 function App() {
   const [placedPosition, setPlacedPosition] = useState(null);
   const [products, setProducts] = useState([]);
@@ -138,7 +139,6 @@ function App() {
   const [currentProduct, setCurrentProduct] = useState(null);
 
   useEffect(() => {
-    // Make sure to use your *LIVE* render URL here
     axios.get('https://webar-mern-project.onrender.com/api/products')
       .then(response => {
         console.log('Products fetched:', response.data);
@@ -171,9 +171,10 @@ function App() {
     );
   }
 
+  // We wrap everything in our new app-container div
   return (
-    <>
-      {/* --- (NEW) Product Gallery Container --- */}
+    <div className="app-container">
+      {/* --- Product Gallery (Top) --- */}
       <div className="product-gallery-container">
         {products.map((product) => (
           <Thumbnail
@@ -182,13 +183,13 @@ function App() {
             isActive={currentProduct._id === product._id}
             onClick={() => {
               setCurrentProduct(product);
-              setPlacedPosition(null); // Reset placement when changing model
+              setPlacedPosition(null); 
             }}
           />
         ))}
       </div>
 
-      {/* --- Main 3D Canvas --- */}
+      {/* --- Main 3D Canvas (Middle) --- */}
       <div id="canvas-container">
         <Canvas camera={{ position: [2, 2, 5], fov: 75 }}>
           <XR>
@@ -201,11 +202,9 @@ function App() {
         </Canvas>
       </div>
 
-      {/* --- Bottom Controls Bar --- */}
+      {/* --- Bottom Controls Bar (Bottom) --- */}
       <div className="controls-container">
-        {/* The AR Button will be put here */}
         <ARButton sessionInit={{ requiredFeatures: ['hit-test'] }} />
-        {/* The Reset Button is here */}
         <button
           className="reset-button"
           onClick={() => setPlacedPosition(null)}
@@ -213,7 +212,7 @@ function App() {
           Reset
         </button>
       </div>
-    </>
+    </div>
   );
 }
 
