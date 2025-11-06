@@ -95,7 +95,7 @@ function App() {
 
   useEffect(() => {
     // RIGHT
-      axios.get('https://10.81.64.117:5001/api/products') // Make sure your IP is correct!
+      axios.get('https://webar-mern-project.onrender.com/api/products') // Make sure your IP is correct!
       .then(response => {
         console.log('Products fetched:', response.data);
         if (response.data.length === 0) {
