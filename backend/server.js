@@ -2,8 +2,6 @@
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
-const https = require('https'); // <-- Stays the same
-const fs = require('fs'); // <-- Stays the same
 require('dotenv').config();
 
 const app = express();
@@ -30,17 +28,11 @@ app.get('/api/test', (req, res) => {
 });
 // ------------------
 
-// --- 3. Define path to our new local SSL certificate --- (THIS IS THE UPDATED PART)
-const httpsOptions = {
-  key: fs.readFileSync('./certs/cert.key'),
-  cert: fs.readFileSync('./certs/cert.pem')
-};
-// ------------------------------------------
-
 // Start the server
-const PORT = 5001;
+// We use process.env.PORT for Render's dynamic port, or 5001 as a fallback.
+const PORT = process.env.PORT || 5001;
 
-// --- 4. Start an HTTPS server instead of an HTTP one ---
-https.createServer(httpsOptions, app).listen(PORT, () => {
-  console.log(`SECURE server is running on https://localhost:${PORT}`);
+// --- 4. Start a simple HTTP server ---
+app.listen(PORT, () => {
+  console.log(`Server is running on port: ${PORT}`);
 });
