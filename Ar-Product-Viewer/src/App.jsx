@@ -171,10 +171,23 @@ function App() {
     );
   }
 
-  // We wrap everything in our new app-container div
+  // This is the new layout
   return (
     <div className="app-container">
-      {/* --- Product Gallery (Top) --- */}
+      {/* The Main 3D Canvas is now the base layer */}
+      <div id="canvas-container">
+        <Canvas camera={{ position: [2, 2, 5], fov: 75 }}>
+          <XR>
+            <Scene
+              modelPath={currentProduct.modelPath}
+              placedPosition={placedPosition}
+              setPlacedPosition={setPlacedPosition}
+            />
+          </XR>
+        </Canvas>
+      </div>
+
+      {/* The Gallery is an overlay on TOP */}
       <div className="product-gallery-container">
         {products.map((product) => (
           <Thumbnail
@@ -189,20 +202,7 @@ function App() {
         ))}
       </div>
 
-      {/* --- Main 3D Canvas (Middle) --- */}
-      <div id="canvas-container">
-        <Canvas camera={{ position: [2, 2, 5], fov: 75 }}>
-          <XR>
-            <Scene
-              modelPath={currentProduct.modelPath}
-              placedPosition={placedPosition}
-              setPlacedPosition={setPlacedPosition}
-            />
-          </XR>
-        </Canvas>
-      </div>
-
-      {/* --- Bottom Controls Bar (Bottom) --- */}
+      {/* The Controls are an overlay on the BOTTOM */}
       <div className="controls-container">
         <ARButton sessionInit={{ requiredFeatures: ['hit-test'] }} />
         <button

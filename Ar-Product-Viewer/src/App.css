@@ -4,9 +4,8 @@
 .app-container {
   width: 100vw;
   height: 100vh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden; /* Stop any scrolling */
+  position: relative; /* This is the key for overlaying */
+  overflow: hidden;
 }
 
 /* For the loading/error messages */
@@ -19,20 +18,24 @@
   background-color: #242424;
 }
 
-/* --- Product Gallery Container (Top) --- */
+/* --- Product Gallery Container (Top Overlay) --- */
 .product-gallery-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  
   background: rgba(0, 0, 0, 0.7);
   padding: 10px;
-  flex-shrink: 0; /* Stop this from shrinking */
   max-height: 160px; /* Limit height */
-  overflow-y: auto; /* Enable vertical scrolling */
+  overflow-y: hidden; /* No vertical scroll */
+  overflow-x: auto; /* Enable horizontal scrolling */
   display: flex;
   flex-wrap: nowrap; /* Force a single, horizontal line */
-  overflow-x: auto; /* Enable horizontal scrolling */
   gap: 15px;
   align-items: flex-start;
-  z-index: 10;
-  pointer-events: none;
+  pointer-events: none; /* Let touches pass through */
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -47,11 +50,11 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-start; /* Align to the top */
+  justify-content: flex-start;
   border: 2px solid transparent;
   transition: border-color 0.2s, background-color 0.2s;
-  pointer-events: auto;
-  flex-shrink: 0; /* Stop items from shrinking */
+  pointer-events: auto; /* Buttons are clickable */
+  flex-shrink: 0;
 }
 
 .gallery-item:hover {
@@ -71,7 +74,7 @@
   text-align: center;
   white-space: normal;
   word-break: break-word;
-  height: 30px; /* Fixed height for name */
+  height: 30px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -89,25 +92,31 @@
   align-items: center;
 }
 
-/* --- Main Canvas Container (Middle) --- */
+/* --- Main Canvas Container (Full Screen) --- */
 #canvas-container {
-  flex-grow: 1; /* This is the key: fill all remaining space */
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
-  position: relative; /* Must be relative for flex to work */
+  height: 100%;
+  z-index: 1; /* Base layer */
 }
 
-/* --- Bottom Controls Container (Bottom) --- */
+/* --- Bottom Controls Container (Bottom Overlay) --- */
 .controls-container {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+
   background: rgba(0, 0, 0, 0.7);
   padding: 15px;
   display: flex;
   gap: 15px;
   justify-content: center;
   align-items: center;
-  z-index: 10;
   pointer-events: none;
-  position: relative; /* Must be relative for flex to work */
-  flex-shrink: 0; /* Stop this from shrinking */
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
