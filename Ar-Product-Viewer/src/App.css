@@ -1,4 +1,26 @@
-/* Add these styles to src/App.css */
+/* src/App.css */
+
+/* --- Reset --- */
+body, html {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden; /* Prevent body scrolling */
+}
+
+#root {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column; /* Main container is a column */
+}
+
+#canvas-container {
+  flex-grow: 1; /* Takes up all available space */
+  width: 100%;
+  position: relative; /* For the main canvas */
+}
 
 /* For the loading/error messages */
 .center-message {
@@ -10,39 +32,116 @@
   background-color: #242424;
 }
 
-/* Container for our product buttons */
-.product-selector {
-  position: absolute;
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 1000;
-  background: rgba(0, 0, 0, 0.5);
-  padding: 8px;
-  border-radius: 12px;
-  display: flex;
-  gap: 10px;
+/* --- (NEW) Product Gallery Container --- */
+.product-gallery-container {
+  background: rgba(0, 0, 0, 0.7);
+  padding: 10px;
+  max-height: 200px; /* Limit height to make it scrollable */
+  overflow-y: auto; /* Enable vertical scrolling */
+  display: flex; /* Use flexbox for the items */
+  flex-wrap: wrap; /* Allow items to wrap to the next line */
+  gap: 15px; /* Space between gallery items */
+  justify-content: center; /* Center items if they don't fill the row */
+  align-items: flex-start; /* Align items to the top */
+  z-index: 10;
+  pointer-events: none; /* Let touches pass through the container */
+  position: relative;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1); /* Subtle separator */
 }
 
-/* Individual product button */
-.product-button {
-  padding: 10px 15px;
-  background-color: #444;
-  color: white;
-  border: none;
+/* --- (NEW) Individual Gallery Item --- */
+.gallery-item {
+  width: 120px; /* Fixed width for each item */
+  height: 140px; /* Fixed height for each item */
+  background-color: #333;
   border-radius: 8px;
-  font-size: 14px;
+  overflow: hidden; /* Hide anything outside the item box */
   cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between; /* Space out title and model */
   border: 2px solid transparent;
-  transition: background-color 0.2s, border-color 0.2s;
+  transition: border-color 0.2s, background-color 0.2s;
+  pointer-events: auto; /* Make items clickable */
 }
 
-.product-button:hover {
-  background-color: #555;
+.gallery-item:hover {
+  background-color: #444;
 }
 
-/* Style for the *active* button */
-.product-button.active {
+.gallery-item.active {
+  border-color: #007bff; /* Highlight active item */
+  background-color: #007bff40; /* Slightly blue background */
+}
+
+/* --- (NEW) Gallery Item Name --- */
+.gallery-item-name {
+  color: white;
+  font-size: 0.8em;
+  padding: 5px 0;
+  text-align: center;
+  white-space: normal; /* Allow name to wrap */
+  word-break: break-word; /* Break long words */
+  max-height: 30px; /* Limit height of name */
+  overflow: hidden; /* Hide overflow */
+  text-overflow: ellipsis; /* Add ellipsis for overflow */
+  margin-top: 5px;
+}
+
+/* --- (NEW) Gallery Model Canvas --- */
+.gallery-model-canvas {
+  width: 100px; /* Size of the smaller canvas inside the item */
+  height: 100px;
+  background-color: #222; /* Darker background for the model area */
+  border-radius: 4px; /* Slightly rounded corners for the canvas */
+  flex-shrink: 0; /* Don't let it shrink */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+
+/* --- Bottom Controls Container (similar to before, but now has two buttons) --- */
+.controls-container {
+  background: rgba(0, 0, 0, 0.7);
+  padding: 15px;
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
+  pointer-events: none; /* Let touches pass through the container */
+  position: relative; /* Important for being at the bottom of flex column */
+  border-top: 1px solid rgba(255, 255, 255, 0.1); /* Subtle separator */
+}
+
+/* Make buttons in the container clickable */
+.controls-container > button {
+  pointer-events: auto;
+  padding: 12px 25px;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 16px;
+  cursor: pointer;
+  border: none;
+  transition: background-color 0.2s;
+}
+
+/* Style for the Reset button */
+.reset-button {
+  background-color: #e0e0e0;
+  color: #333;
+}
+.reset-button:hover {
+  background-color: #d0d0d0;
+}
+
+/* Vercel's AR Button */
+.controls-container > button[aria-label="Enter AR"] {
   background-color: #007bff;
-  border-color: #fff;
+  color: white;
+}
+.controls-container > button[aria-label="Enter AR"]:hover {
+  background-color: #0056b3;
 }
