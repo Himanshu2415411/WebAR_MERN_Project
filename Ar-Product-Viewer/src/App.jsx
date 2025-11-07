@@ -2,7 +2,7 @@
 
 import React, { Suspense, useEffect, useState, useRef, forwardRef } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, useGLTF, useAnimations, AdaptiveDpr } from '@react-three/drei';
+import { OrbitControls, useGLTF, useAnimations, AdaptiveDpr, Center } from '@react-three/drei'; // Import Center
 import { ARButton, XR, useXR, useHitTest, Interactive } from '@react-three/xr';
 import axios from 'axios';
 import * as THREE from 'three';
@@ -33,30 +33,15 @@ class ModelErrorBoundary extends React.Component {
   }
 }
 
-// 1. Model component (Simplified)
+// 1. Model component (SIMPLIFIED TO PREVENT CRASHES)
 function Model({ modelPath, ...props }) {
-  const { scene } = useGLTF(modelPath); // <-- Corrected
+  const { scene } = useGLTF(modelPath);
+  // We use a clone so that the main model and thumbnail don't share the same object
   const clonedScene = React.useMemo(() => scene.clone(), [scene]);
-  const modelRef = useRef();
-
-  // This effect centers and scales the model
-  useEffect(() => {
-    if (modelRef.current) {
-      try {
-        const box = new THREE.Box3().setFromObject(modelRef.current);
-        const center = box.getCenter(new THREE.Vector3());
-        const size = box.getSize(new THREE.Vector3());
-        const maxDim = Math.max(size.x, size.y, size.z);
-        if (maxDim > 0 && Number.isFinite(maxDim)) {
-          const desiredScale = 0.8 / maxDim;
-          modelRef.current.scale.set(desiredScale, desiredScale, desiredScale);
-          modelRef.current.position.set(-center.x * desiredScale, -center.y * desiredScale, -center.z * desiredScale);
-        }
-      } catch (e) { console.error("Error scaling model:", e); }
-    }
-  }, [clonedScene, modelPath]);
-
-  return <primitive ref={modelRef} object={clonedScene} {...props} />;
+  
+  // Removed all complex scaling logic that was crashing
+  
+  return <primitive object={clonedScene} {...props} />;
 }
 
 // 2. Reticle component (unchanged)
@@ -70,37 +55,9 @@ const Reticle = forwardRef((props, ref) => {
 });
 Reticle.displayName = 'Reticle';
 
-// (NEW) Wrapper for main model to handle controls and centering
-function ModelWithControls({ modelPath }) {
-  const modelRef = useRef();
-  
-  useEffect(() => {
-    if (modelRef.current) {
-      try {
-        const box = new THREE.Box3().setFromObject(modelRef.current);
-        const center = box.getCenter(new THREE.Vector3());
-        const size = box.getSize(new THREE.Vector3());
-        const maxDim = Math.max(size.x, size.y, size.z);
-        if (maxDim > 0 && Number.isFinite(maxDim)) {
-          const scale = 2.5 / maxDim;
-          modelRef.current.scale.set(scale, scale, scale);
-          modelRef.current.position.set(-center.x * scale, -center.y * scale, -center.z * scale);
-        }
-      } catch (e) { console.error("Error scaling main model:", e); }
-    }
-  }, [modelPath]);
-
-  return (
-    <group ref={modelRef}>
-      <Model modelPath={modelPath} />
-      <OrbitControls enablePan={true} enableZoom={true} />
-    </group>
-  );
-}
-
-// 3. Scene component (UPDATED: receives arScale and syncs isPresenting)
+// 3. Scene component (main 3D/AR view)
 function Scene({ modelKey, modelPath, placedPosition, setPlacedPosition, arScale, setIsPresenting }) {
-  const { isPresenting } = useXR(); // <-- Corrected
+  const { isPresenting } = useXR();
   const reticleRef = useRef();
 
   // This syncs the *internal* AR state with the *external* React state
@@ -132,7 +89,11 @@ function Scene({ modelKey, modelPath, placedPosition, setPlacedPosition, arScale
         {!isPresenting && (
           // Desktop/3D Mode
           <>
-            <ModelWithControls modelPath={modelPath} />
+            {/* We use <Center> to automatically center and scale the model */}
+            <Center>
+              <Model modelPath={modelPath} />
+            </Center>
+            <OrbitControls enablePan={true} enableZoom={true} />
             <AdaptiveDpr pixelated />
           </>
         )}
@@ -154,7 +115,7 @@ function Scene({ modelKey, modelPath, placedPosition, setPlacedPosition, arScale
   );
 }
 
-// 4. Thumbnail Component (unchanged)
+// 4. Thumbnail Component
 function Thumbnail({ product, isActive, onClick }) {
   return (
     <div
@@ -169,7 +130,10 @@ function Thumbnail({ product, isActive, onClick }) {
             <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={1} />
             <pointLight position={[-10, -10, -10]} intensity={0.5} />
             <Suspense fallback={null}>
-              <Model modelPath={product.modelPath} />
+              {/* Use <Center> here as well for thumbnails */}
+              <Center>
+                <Model modelPath={product.modelPath} />
+              </Center>
               <OrbitControls enableZoom={false} enablePan={false} autoRotate speed={0.5} />
             </Suspense>
           </Canvas>
@@ -194,7 +158,7 @@ function ARControls({ setArScale }) {
   );
 }
 
-// 6. App component (This is the main fix)
+// 6. App component
 function App() {
   const [products, setProducts] = useState([]);
   const [error, setError] = useState(null);
@@ -240,28 +204,9 @@ function App() {
     );
   }
 
-  // This is the new, correct "Overlay" layout
   return (
     <div className="app-container">
-      {/* Main 3D Canvas (Base Layer) */}
-      <div id="canvas-container">
-        <ModelErrorBoundary>
-          <Canvas camera={{ position: [2, 2, 5], fov: 75 }}>
-            <XR>
-              <Scene
-                modelKey={currentProduct._id}
-                modelPath={currentProduct.modelPath}
-                placedPosition={placedPosition}
-                setPlacedPosition={setPlacedPosition}
-                arScale={arScale}
-                setIsPresenting={setIsPresenting} // Pass the setter down
-              />
-            </XR>
-          </Canvas>
-        </ModelErrorBoundary>
-      </div>
-
-      {/* Gallery (Top Overlay) */}
+      {/* Gallery (Top) */}
       <div className="product-gallery-container">
         {products.map((product) => (
           <Thumbnail
@@ -273,7 +218,25 @@ function App() {
         ))}
       </div>
 
-      {/* Controls (Bottom Overlay) */}
+      {/* Main 3D Canvas (Middle) */}
+      <div id="canvas-container">
+        <ModelErrorBoundary>
+          <Canvas camera={{ position: [2, 2, 5], fov: 75 }}>
+            <XR>
+              <Scene
+                modelKey={currentProduct._id} /* Add key to force re-render */
+                modelPath={currentProduct.modelPath}
+                placedPosition={placedPosition}
+                setPlacedPosition={setPlacedPosition}
+                arScale={arScale}
+                setIsPresenting={setIsPresenting} // Pass the setter down
+              />
+            </XR>
+          </Canvas>
+        </ModelErrorBoundary>
+      </div>
+
+      {/* Controls (Bottom) */}
       <div className="controls-container">
         <ARButton sessionInit={{ requiredFeatures: ['hit-test'] }} />
         <button
@@ -285,7 +248,6 @@ function App() {
       </div>
 
       {/* AR Scale Controls (Side Overlay) */}
-      {/* This now correctly shows only when isPresenting is true */}
       {isPresenting && <ARControls setArScale={setArScale} />}
     </div>
   );
