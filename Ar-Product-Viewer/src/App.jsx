@@ -2,8 +2,8 @@
 
 import React, { Suspense, useEffect, useState, useRef, forwardRef } from 'react';
 import { Canvas } from '@react-three/fiber';
-// Import <Center> helper
-import { OrbitControls, useGLTF, AdaptiveDpr, Center } from '@react-three/drei'; 
+// REMOVED <Center>
+import { OrbitControls, useGLTF, AdaptiveDpr } from '@react-three/drei'; 
 import { ARButton, XR, useXR, useHitTest, Interactive } from '@react-three/xr';
 import axios from 'axios';
 import * as THREE from 'three';
@@ -34,7 +34,7 @@ class ModelErrorBoundary extends React.Component {
   }
 }
 
-// 1. Model component (SIMPLIFIED - NO SCALING LOGIC)
+// 1. Model component (SIMPLIFIED - no custom logic)
 function Model({ modelPath, ...props }) {
   const { scene } = useGLTF(modelPath);
   const clonedScene = React.useMemo(() => scene.clone(), [scene]);
@@ -52,7 +52,7 @@ const Reticle = forwardRef((props, ref) => {
 });
 Reticle.displayName = 'Reticle';
 
-// 3. Scene component (UPDATED to use <Center>)
+// 3. Scene component (SIMPLIFIED - NO <Center>)
 function Scene({ modelKey, modelPath, placedPosition, setPlacedPosition, arScale, setIsPresenting }) {
   const { isPresenting } = useXR();
   const reticleRef = useRef();
@@ -86,10 +86,8 @@ function Scene({ modelKey, modelPath, placedPosition, setPlacedPosition, arScale
         {!isPresenting && (
           // Desktop/3D Mode
           <>
-            {/* Use <Center> to safely auto-scale and center the model */}
-            <Center>
-              <Model modelPath={modelPath} />
-            </Center>
+            {/* Model is loaded at its default size. User can zoom/pan. */}
+            <Model modelPath={modelPath} />
             <OrbitControls enablePan={true} enableZoom={true} />
             <AdaptiveDpr pixelated />
           </>
@@ -99,10 +97,8 @@ function Scene({ modelKey, modelPath, placedPosition, setPlacedPosition, arScale
           <>
             {placedPosition ? (
               <group position={placedPosition} scale={arScale}>
-                {/* Use <Center> here too for a good default size */}
-                <Center>
-                  <Model modelPath={modelPath} />
-                </Center>
+                {/* Model is loaded at its default size. User can scale with + / - */}
+                <Model modelPath={modelPath} />
               </group>
             ) : (
               <Interactive onSelect={onSelect}>
@@ -115,7 +111,7 @@ function Scene({ modelKey, modelPath, placedPosition, setPlacedPosition, arScale
   );
 }
 
-// 4. Thumbnail Component (UPDATED to use <Center>)
+// 4. Thumbnail Component (SIMPLIFIED - NO <Center>)
 function Thumbnail({ product, isActive, onClick }) {
   return (
     <div
@@ -130,10 +126,7 @@ function Thumbnail({ product, isActive, onClick }) {
             <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={1} />
             <pointLight position={[-10, -10, -10]} intensity={0.5} />
             <Suspense fallback={null}>
-              {/* Use <Center> to safely scale the thumbnail model */}
-              <Center>
-                <Model modelPath={product.modelPath} />
-              </Center>
+              <Model modelPath={product.modelPath} />
               <OrbitControls enableZoom={false} enablePan={false} autoRotate speed={0.5} />
             </Suspense> 
           </Canvas>
@@ -158,7 +151,7 @@ function ARControls({ setArScale }) {
   );
 }
 
-// 6. App component (This is the main fix, uses Overlay Layout)
+// 6. App component (The main layout)
 function App() {
   const [products, setProducts] = useState([]);
   const [error, setError] = useState(null);
@@ -166,6 +159,15 @@ function App() {
   const [placedPosition, setPlacedPosition] = useState(null);
   const [arScale, setArScale] = useState(1);
   const [isPresenting, setIsPresenting] = useState(false); 
+  const [isARSupported, setIsARSupported] = useState(false); // (NEW)
+
+  // Check for AR support on mount
+  useEffect(() => {
+    (async () => {
+      const supported = await ARButton.isCompatible();
+      setIsARSupported(supported);
+    })();
+  }, []);
 
   useEffect(() => {
     axios.get('https://webar-mern-project.onrender.com/api/products')
@@ -206,7 +208,19 @@ function App() {
 
   return (
     <div className="app-container">
-      {/* Main 3D Canvas (Base Layer) */}
+      {/* Gallery (Top) */}
+      <div className="product-gallery-container">
+        {products.map((product) => (
+          <Thumbnail
+            key={product._id}
+            product={product}
+            isActive={currentProduct._id === product._id}
+            onClick={selectProduct}
+          />
+        ))}
+      </div>
+
+      {/* Main 3D Canvas (Middle) */}
       <div id="canvas-container">
         <ModelErrorBoundary>
           <Canvas camera={{ position: [2, 2, 5], fov: 75 }}>
@@ -224,21 +238,14 @@ function App() {
         </ModelErrorBoundary>
       </div>
 
-      {/* Gallery (Top Overlay) */}
-      <div className="product-gallery-container">
-        {products.map((product) => (
-          <Thumbnail
-            key={product._id}
-            product={product}
-            isActive={currentProduct._id === product._id}
-            onClick={selectProduct}
-          />
-        ))}
-      </div>
-
-      {/* Controls (Bottom Overlay) */}
+      {/* Controls (Bottom) */}
       <div className="controls-container">
-        <ARButton sessionInit={{ requiredFeatures: ['hit-test'] }} />
+        {/* (NEW) Show "Enter AR" on mobile, or text on desktop */}
+        {isARSupported ? (
+          <ARButton sessionInit={{ requiredFeatures: ['hit-test'] }} />
+        ) : (
+          <div className="ar-unsupported-text">AR Not Supported on this Device</div>
+        )}
         <button
           className="reset-button"
           onClick={() => setPlacedPosition(null)}

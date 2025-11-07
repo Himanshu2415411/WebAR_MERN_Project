@@ -4,9 +4,10 @@
 .app-container {
   width: 100vw;
   height: 100vh;
-  position: relative; /* This is the key for overlaying */
+  display: flex;
+  flex-direction: column; /* Stack vertically: Gallery, Canvas, Controls */
   overflow: hidden;
-  background-color: #333; /* Dark background */
+  background-color: #333; /* Dark background for the app */
 }
 
 /* --- Loading / Error States --- */
@@ -22,29 +23,14 @@
   z-index: 100;
 }
 
-/* --- Main 3D Canvas (Full Screen) --- */
-#canvas-container {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 1; /* Base layer */
-}
-
-/* --- Top Gallery Overlay --- */
+/* --- 1. Top Gallery --- */
 .product-gallery-container {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 10;
-  
+  flex-shrink: 0; /* Don't let this shrink */
   background: rgba(0, 0, 0, 0.7);
   padding: 10px;
   max-height: 160px; /* Limit height */
-  overflow-y: hidden; /* No vertical scroll */
   overflow-x: auto; /* Enable horizontal scrolling */
+  overflow-y: hidden;
   display: flex;
   flex-wrap: nowrap; /* Force a single, horizontal line */
   gap: 15px;
@@ -95,21 +81,24 @@
   flex-shrink: 0;
 }
 
-/* --- Bottom Controls Overlay --- */
-.controls-container {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 10;
+/* --- 2. Main 3D Canvas (Middle) --- */
+#canvas-container {
+  flex-grow: 1; /* This is the key: fill all remaining space */
+  width: 100%;
+  position: relative; /* Must be relative for flex to work */
+}
 
+/* --- 3. Bottom Controls --- */
+.controls-container {
+  flex-shrink: 0; /* Don't let this shrink */
   background: rgba(0, 0, 0, 0.7);
   padding: 15px;
   display: flex;
   gap: 15px;
   justify-content: center;
   align-items: center;
-  pointer-events: none; /* Let touches pass through */
+  pointer-events: auto; /* Make container clickable */
+  position: relative;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -122,10 +111,13 @@
   cursor: pointer;
   border: none;
 }
+
 .reset-button {
   background-color: #e0e0e0;
   color: #333;
 }
+
+/* Vercel's AR Button */
 .controls-container > button[aria-label="Enter AR"] {
   background-color: #007bff;
   color: white;
@@ -164,4 +156,10 @@
   place-items: center;
   color: #888;
   font-size: 2em;
+}
+
+/* (NEW) Text to show on desktop */
+.ar-unsupported-text {
+  font-size: 14px;
+  color: #999;
 }
