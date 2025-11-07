@@ -230,14 +230,19 @@ function App() {
 
       {/* Controls (Bottom Overlay) */}
       <div className="controls-container">
-        <ARButton sessionInit={{ requiredFeatures: ['hit-test'] }} />
-        <button
-          className="reset-button"
-          onClick={() => setPlacedPosition(null)}
-        >
-          Reset
-        </button>
-      </div>
+
+    {/* This wrapper div will be the flex item */}
+    <div className="ar-button-wrapper">
+      <ARButton sessionInit={{ requiredFeatures: ['hit-test'] }} />
+    </div>
+
+    <button
+      className="reset-button"
+      onClick={() => setPlacedPosition(null)}
+    >
+      Reset
+    </button>
+  </div>
 
       {/* AR Scale Controls (Side Overlay) */}
       {isPresenting && <ARControls setArScale={setArScale} />}

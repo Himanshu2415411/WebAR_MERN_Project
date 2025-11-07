@@ -118,10 +118,27 @@
 }
 
 /* Vercel's AR Button */
-.controls-container > button[aria-label="Enter AR"] {
+/* Wrapper for the AR button to contain its absolute positioning */
+.ar-button-wrapper {
+  position: relative; /* This will be the flex item */
+  width: 130px; /* Give it a set size, can be adjusted */
+  height: 50px; /* Give it a set size, can be adjusted */
+}
+
+/* Target the AR button injected by the component */
+.ar-button-wrapper > button[aria-label="Enter AR"] {
+  /* Override its injected styles to fill its parent */
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important; /* Reset margins */
+  border-radius: 8px !important; /* Match our reset button */
   background-color: #007bff;
   color: white;
-  position: static !important;
+  font-weight: bold;
+  font-size: 16px;
 }
 
 /* --- AR Scale Controls (Side Overlay) --- */
