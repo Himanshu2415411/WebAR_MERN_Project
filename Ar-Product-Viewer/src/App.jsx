@@ -2,7 +2,8 @@
 
 import React, { Suspense, useEffect, useState, useRef, forwardRef } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, useGLTF, AdaptiveDpr, Center } from '@react-three/drei'; 
+// REMOVED <Center>
+import { OrbitControls, useGLTF, AdaptiveDpr } from '@react-three/drei'; 
 import { ARButton, XR, useXR, useHitTest, Interactive } from '@react-three/xr';
 import axios from 'axios';
 import * as THREE from 'three';
@@ -33,7 +34,7 @@ class ModelErrorBoundary extends React.Component {
   }
 }
 
-// 1. Model component (unchanged)
+// 1. Model component (SIMPLIFIED - no custom logic)
 function Model({ modelPath, ...props }) {
   const { scene } = useGLTF(modelPath);
   const clonedScene = React.useMemo(() => scene.clone(), [scene]);
@@ -51,13 +52,14 @@ const Reticle = forwardRef((props, ref) => {
 });
 Reticle.displayName = 'Reticle';
 
-// 3. Scene component (UPDATED: We remove the 'setIsPresenting' prop)
-function Scene({ modelKey, modelPath, placedPosition, setPlacedPosition, arScale }) {
-  // We still use useXR here to decide *what* to render (AR vs 3D)
+// 3. Scene component (SIMPLIFIED - NO <Center>)
+function Scene({ modelKey, modelPath, placedPosition, setPlacedPosition, arScale, setIsPresenting }) {
   const { isPresenting } = useXR();
   const reticleRef = useRef();
 
-  // The useEffect that synced state is now GONE.
+  useEffect(() => {
+    setIsPresenting(isPresenting);
+  }, [isPresenting, setIsPresenting]);
 
   useHitTest((hitMatrix) => {
     if (!placedPosition && reticleRef.current) {
@@ -83,9 +85,8 @@ function Scene({ modelKey, modelPath, placedPosition, setPlacedPosition, arScale
         {!isPresenting && (
           // Desktop/3D Mode
           <>
-            <Center>
-              <Model modelPath={modelPath} />
-            </Center>
+            {/* Model is loaded at its default size. User can zoom/pan. */}
+            <Model modelPath={modelPath} />
             <OrbitControls enablePan={true} enableZoom={true} />
             <AdaptiveDpr pixelated />
           </>
@@ -95,9 +96,8 @@ function Scene({ modelKey, modelPath, placedPosition, setPlacedPosition, arScale
           <>
             {placedPosition ? (
               <group position={placedPosition} scale={arScale}>
-                <Center>
-                  <Model modelPath={modelPath} />
-                </Center>
+                {/* Model is loaded at its default size. User can scale with + / - */}
+                <Model modelPath={modelPath} />
               </group>
             ) : (
               <Interactive onSelect={onSelect}>
@@ -110,7 +110,7 @@ function Scene({ modelKey, modelPath, placedPosition, setPlacedPosition, arScale
   );
 }
 
-// 4. Thumbnail Component (unchanged)
+// 4. Thumbnail Component (SIMPLIFIED - NO <Center>)
 function Thumbnail({ product, isActive, onClick }) {
   return (
     <div
@@ -125,9 +125,7 @@ function Thumbnail({ product, isActive, onClick }) {
             <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={1} />
             <pointLight position={[-10, -10, -10]} intensity={0.5} />
             <Suspense fallback={null}>
-              <Center>
-                <Model modelPath={product.modelPath} />
-              </Center>
+              <Model modelPath={product.modelPath} />
               <OrbitControls enableZoom={false} enablePan={false} autoRotate speed={0.5} />
             </Suspense> 
           </Canvas>
@@ -152,7 +150,7 @@ function ARControls({ setArScale }) {
   );
 }
 
-// 6. App component (UPDATED: We use onSessionStart/onSessionEnd)
+// 6. App component (The main layout)
 function App() {
   const [products, setProducts] = useState([]);
   const [error, setError] = useState(null);
@@ -200,31 +198,6 @@ function App() {
 
   return (
     <div className="app-container">
-      {/* Main 3D Canvas (Base Layer) */}
-      <div id="canvas-container">
-        <ModelErrorBoundary>
-          <Canvas camera={{ position: [2, 2, 5], fov: 75 }}>
-            {/* --- THIS IS THE FIX --- */}
-            <XR
-              onSessionStart={() => setIsPresenting(true)}
-              onSessionEnd={() => {
-                setIsPresenting(false);
-                setPlacedPosition(null); // Also reset placement on exit
-              }}
-            >
-              <Scene
-                modelKey={currentProduct._id}
-                modelPath={currentProduct.modelPath}
-                placedPosition={placedPosition}
-                setPlacedPosition={setPlacedPosition}
-                arScale={arScale}
-                // setIsPresenting prop is GONE
-              />
-            </XR>
-          </Canvas>
-        </ModelErrorBoundary>
-      </div>
-
       {/* Gallery (Top Overlay) */}
       <div className="product-gallery-container">
         {products.map((product) => (
@@ -236,22 +209,42 @@ function App() {
           />
         ))}
       </div>
+      
+      {/* Main 3D Canvas (Base Layer) */}
+      <div id="canvas-container">
+        <ModelErrorBoundary>
+          <Canvas camera={{ position: [2, 2, 5], fov: 75 }}>
+            <XR>
+              <Scene
+                modelKey={currentProduct._id}
+                modelPath={currentProduct.modelPath}
+                placedPosition={placedPosition}
+                setPlacedPosition={setPlacedPosition}
+                arScale={arScale}
+                setIsPresenting={setIsPresenting} 
+              />
+            </XR>
+          </Canvas>
+        </ModelErrorBoundary>
+      </div>
 
       {/* Controls (Bottom Overlay) */}
       <div className="controls-container">
-        <div className="ar-button-wrapper">
-          <ARButton sessionInit={{ requiredFeatures: ['hit-test'] }} />
-        </div>
-        <button
-          className="reset-button"
-          onClick={() => setPlacedPosition(null)}
-        >
-          Reset
-        </button>
-      </div>
+
+    {/* This wrapper div will be the flex item */}
+    <div className="ar-button-wrapper">
+      <ARButton sessionInit={{ requiredFeatures: ['hit-test'] }} />
+    </div>
+
+    <button
+      className="reset-button"
+      onClick={() => setPlacedPosition(null)}
+    >
+      Reset
+    </button>
+  </div>
 
       {/* AR Scale Controls (Side Overlay) */}
-      {/* This will now work reliably */}
       {isPresenting && <ARControls setArScale={setArScale} />}
     </div>
   );
