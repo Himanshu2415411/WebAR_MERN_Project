@@ -1,13 +1,12 @@
 /* src/App.css */
 
-/* This is the main container that fixes the layout */
+/* This is the main container that holds everything */
 .app-container {
   width: 100vw;
   height: 100vh;
-  display: flex;
-  flex-direction: column; /* Stack vertically: Gallery, Canvas, Controls */
+  position: relative; /* This is the key for overlaying */
   overflow: hidden;
-  background-color: #333; /* Dark background for the app */
+  background-color: #333; /* Dark background */
 }
 
 /* --- Loading / Error States --- */
@@ -23,19 +22,34 @@
   z-index: 100;
 }
 
-/* --- 1. Top Gallery --- */
+/* --- Main 3D Canvas (Full Screen) --- */
+#canvas-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1; /* Base layer */
+}
+
+/* --- Top Gallery Overlay --- */
 .product-gallery-container {
-  flex-shrink: 0; /* Don't let this shrink */
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  
   background: rgba(0, 0, 0, 0.7);
   padding: 10px;
   max-height: 160px; /* Limit height */
+  overflow-y: hidden; /* No vertical scroll */
   overflow-x: auto; /* Enable horizontal scrolling */
-  overflow-y: hidden;
   display: flex;
   flex-wrap: nowrap; /* Force a single, horizontal line */
   gap: 15px;
   align-items: flex-start;
-  pointer-events: auto; /* THIS FIXES SCROLLING */
+  pointer-events: auto; /* FIXES SCROLLING */
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -81,24 +95,21 @@
   flex-shrink: 0;
 }
 
-/* --- 2. Main 3D Canvas (Middle) --- */
-#canvas-container {
-  flex-grow: 1; /* This is the key: fill all remaining space */
-  width: 100%;
-  position: relative; /* Must be relative for flex to work */
-}
-
-/* --- 3. Bottom Controls --- */
+/* --- Bottom Controls Overlay --- */
 .controls-container {
-  flex-shrink: 0; /* Don't let this shrink */
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+
   background: rgba(0, 0, 0, 0.7);
   padding: 15px;
   display: flex;
   gap: 15px;
   justify-content: center;
   align-items: center;
-  pointer-events: auto; /* Make container clickable */
-  position: relative;
+  pointer-events: none; /* Let touches pass through */
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -111,13 +122,10 @@
   cursor: pointer;
   border: none;
 }
-
 .reset-button {
   background-color: #e0e0e0;
   color: #333;
 }
-
-/* Vercel's AR Button */
 .controls-container > button[aria-label="Enter AR"] {
   background-color: #007bff;
   color: white;
