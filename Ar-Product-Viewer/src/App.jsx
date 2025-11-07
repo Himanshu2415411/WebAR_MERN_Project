@@ -53,13 +53,9 @@ const Reticle = forwardRef((props, ref) => {
 Reticle.displayName = 'Reticle';
 
 // 3. Scene component (SIMPLIFIED - NO <Center>)
-function Scene({ modelKey, modelPath, placedPosition, setPlacedPosition, arScale, setIsPresenting }) {
+function Scene({ modelKey, modelPath, placedPosition, setPlacedPosition, arScale }) {
   const { isPresenting } = useXR();
   const reticleRef = useRef();
-
-  useEffect(() => {
-    setIsPresenting(isPresenting);
-  }, [isPresenting, setIsPresenting]);
 
   useHitTest((hitMatrix) => {
     if (!placedPosition && reticleRef.current) {
@@ -198,6 +194,31 @@ function App() {
 
   return (
     <div className="app-container">
+      {/* Main 3D Canvas (Base Layer) */}
+      <div id="canvas-container">
+        <ModelErrorBoundary>
+          <Canvas camera={{ position: [2, 2, 5], fov: 75 }}>
+            {/* --- THIS IS THE FIX --- */}
+            <XR
+              onSessionStart={() => setIsPresenting(true)}
+              onSessionEnd={() => {
+                setIsPresenting(false);
+                setPlacedPosition(null); // Also reset placement on exit
+              }}
+            >
+              <Scene
+                modelKey={currentProduct._id}
+                modelPath={currentProduct.modelPath}
+                placedPosition={placedPosition}
+                setPlacedPosition={setPlacedPosition}
+                arScale={arScale}
+                // We no longer pass setIsPresenting down, it's handled here
+              />
+            </XR>
+          </Canvas>
+        </ModelErrorBoundary>
+      </div>
+
       {/* Gallery (Top Overlay) */}
       <div className="product-gallery-container">
         {products.map((product) => (
@@ -209,42 +230,22 @@ function App() {
           />
         ))}
       </div>
-      
-      {/* Main 3D Canvas (Base Layer) */}
-      <div id="canvas-container">
-        <ModelErrorBoundary>
-          <Canvas camera={{ position: [2, 2, 5], fov: 75 }}>
-            <XR>
-              <Scene
-                modelKey={currentProduct._id}
-                modelPath={currentProduct.modelPath}
-                placedPosition={placedPosition}
-                setPlacedPosition={setPlacedPosition}
-                arScale={arScale}
-                setIsPresenting={setIsPresenting} 
-              />
-            </XR>
-          </Canvas>
-        </ModelErrorBoundary>
-      </div>
 
       {/* Controls (Bottom Overlay) */}
       <div className="controls-container">
-
-    {/* This wrapper div will be the flex item */}
-    <div className="ar-button-wrapper">
-      <ARButton sessionInit={{ requiredFeatures: ['hit-test'] }} />
-    </div>
-
-    <button
-      className="reset-button"
-      onClick={() => setPlacedPosition(null)}
-    >
-      Reset
-    </button>
-  </div>
+        <div className="ar-button-wrapper">
+          <ARButton sessionInit={{ requiredFeatures: ['hit-test'] }} />
+        </div>
+        <button
+          className="reset-button"
+          onClick={() => setPlacedPosition(null)}
+        >
+          Reset
+        </button>
+      </div>
 
       {/* AR Scale Controls (Side Overlay) */}
+      {/* This will now work reliably */}
       {isPresenting && <ARControls setArScale={setArScale} />}
     </div>
   );
