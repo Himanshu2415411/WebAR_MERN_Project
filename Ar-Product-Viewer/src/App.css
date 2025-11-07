@@ -1,21 +1,13 @@
 /* src/App.css */
 
-/* --- Base --- */
-body, html {
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  height: 100%;
-  overflow: hidden; /* Stop all page scrolling */
-  background-color: #242424;
-}
-
-/* This is the new main container */
+/* This is the main container that fixes the layout */
 .app-container {
   width: 100vw;
   height: 100vh;
-  position: relative; /* This is the key for overlaying */
+  display: flex;
+  flex-direction: column; /* Stack vertically: Gallery, Canvas, Controls */
   overflow: hidden;
+  background-color: #333; /* Dark background for the app */
 }
 
 /* --- Loading / Error States --- */
@@ -31,37 +23,20 @@ body, html {
   z-index: 100;
 }
 
-/* --- Main 3D Canvas (Full Screen) --- */
-#canvas-container {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 1; /* Base layer */
-}
-
-/* --- Top Gallery Overlay --- */
+/* --- 1. Top Gallery --- */
 .product-gallery-container {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 10;
-  
+  flex-shrink: 0; /* Don't let this shrink */
   background: rgba(0, 0, 0, 0.7);
   padding: 10px;
   max-height: 160px; /* Limit height */
-  overflow-y: hidden; /* No vertical scroll */
   overflow-x: auto; /* Enable horizontal scrolling */
+  overflow-y: hidden;
   display: flex;
   flex-wrap: nowrap; /* Force a single, horizontal line */
   gap: 15px;
   align-items: flex-start;
+  pointer-events: auto; /* THIS FIXES SCROLLING */
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  
-  /* THIS IS THE FIX: Allow scrolling on the container */
-  pointer-events: auto;
 }
 
 /* Individual Gallery Item */
@@ -77,17 +52,11 @@ body, html {
   align-items: center;
   justify-content: flex-start;
   border: 2px solid transparent;
-  transition: border-color 0.2s, background-color 0.2s;
+  pointer-events: auto;
   flex-shrink: 0;
 }
-
-.gallery-item:hover {
-  background-color: #444;
-}
-
 .gallery-item.active {
   border-color: #007bff;
-  background-color: #007bff40;
 }
 
 /* Gallery Item Name */
@@ -100,7 +69,6 @@ body, html {
   word-break: break-word;
   height: 30px;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 /* Gallery Model Canvas */
@@ -111,57 +79,51 @@ body, html {
   border-radius: 4px;
   margin-top: 5px;
   flex-shrink: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
 }
 
-/* --- Bottom Controls Overlay --- */
-.controls-container {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 10;
+/* --- 2. Main 3D Canvas (Middle) --- */
+#canvas-container {
+  flex-grow: 1; /* This is the key: fill all remaining space */
+  width: 100%;
+  position: relative; /* Must be relative for flex to work */
+}
 
+/* --- 3. Bottom Controls --- */
+.controls-container {
+  flex-shrink: 0; /* Don't let this shrink */
   background: rgba(0, 0, 0, 0.7);
   padding: 15px;
   display: flex;
   gap: 15px;
   justify-content: center;
   align-items: center;
-  pointer-events: none; /* Let touches pass through the container */
+  pointer-events: auto; /* Make container clickable */
+  position: relative;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .controls-container > button {
-  pointer-events: auto; /* Make buttons clickable */
+  pointer-events: auto;
   padding: 12px 25px;
   border-radius: 8px;
   font-weight: bold;
   font-size: 16px;
   cursor: pointer;
   border: none;
-  transition: background-color 0.2s;
 }
 
 .reset-button {
   background-color: #e0e0e0;
   color: #333;
 }
-.reset-button:hover {
-  background-color: #d0d0d0;
-}
 
+/* Vercel's AR Button */
 .controls-container > button[aria-label="Enter AR"] {
   background-color: #007bff;
   color: white;
 }
-.controls-container > button[aria-label="Enter AR"]:hover {
-  background-color: #0056b3;
-}
 
-/* --- (NEW) Error Boundary Fallback --- */
+/* --- Error Boundary Fallback --- */
 .thumbnail-error {
   width: 100px;
   height: 100px;

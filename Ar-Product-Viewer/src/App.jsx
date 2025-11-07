@@ -2,24 +2,22 @@
 
 import React, { Suspense, useEffect, useState, useRef, forwardRef } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, useGLTF, useAnimations } from '@react-three/drei';
+import { OrbitControls, useGLTF, useAnimations, AdaptiveDpr } from '@react-three/drei';
 import { ARButton, XR, useXR, useHitTest, Interactive } from '@react-three/xr';
 import axios from 'axios';
 import * as THREE from 'three';
 import './App.css';
 
 // --- (NEW) Error Boundary Component ---
-// This will catch crashes from bad 3D models
 class ModelErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
     this.state = { hasError: false };
   }
-
   static getDerivedStateFromError(error) {
+    console.error("Model Error:", error);
     return { hasError: true };
   }
-
   render() {
     if (this.state.hasError) {
       return (
@@ -31,48 +29,17 @@ class ModelErrorBoundary extends React.Component {
     return this.props.children;
   }
 }
-// ------------------------------------
 
-// 1. Model component
-function Model({ modelPath, position = [0, 0, 0], scale = 1, animate = false, ...props }) {
-  // useGLTF.preload(modelPath); // This can help, but let's be safe
-  const { scene, animations } = useGLTF(modelPath);
+// 1. Model component (SIMPLIFIED TO PREVENT CRASHES)
+function Model({ modelPath, ...props }) {
+  const { scene } = useGLTF(modelPath);
+  // We use a clone so that the main model and thumbnail don't share the same object
   const clonedScene = React.useMemo(() => scene.clone(), [scene]);
-  const { actions } = useAnimations(animations, clonedScene);
-  const modelRef = useRef();
-
-  useEffect(() => {
-    Object.values(actions).forEach(action => {
-      action.play();
-      action.paused = !animate; // Simpler logic
-    });
-  }, [actions, animate]);
-
-  useEffect(() => {
-    // This effect runs to center and scale the model
-    if (modelRef.current) {
-      // Use a try...catch block to prevent crashes
-      try {
-        const box = new THREE.Box3().setFromObject(modelRef.current);
-        const center = box.getCenter(new THREE.Vector3());
-        const size = box.getSize(new THREE.Vector3());
-        
-        const maxDim = Math.max(size.x, size.y, size.z);
-        
-        let desiredScale = 1;
-        if (maxDim > 0 && Number.isFinite(maxDim)) { 
-          desiredScale = 0.8 / maxDim; // Scale to fit
-        }
-        
-        modelRef.current.scale.set(desiredScale, desiredScale, desiredScale);
-        modelRef.current.position.set(-center.x * desiredScale, -center.y * desiredScale, -center.z * desiredScale);
-      } catch (e) {
-        console.error("Error scaling model:", e);
-      }
-    }
-  }, [clonedScene, modelPath]); // Re-run when the model changes
-
-  return <primitive ref={modelRef} object={clonedScene} {...props} />;
+  
+  // Note: We've removed the complex scaling logic that was crashing
+  // We will control scale from the <Scene> and <Thumbnail> components
+  
+  return <primitive object={clonedScene} {...props} />;
 }
 
 // 2. Reticle component (unchanged)
@@ -87,7 +54,8 @@ const Reticle = forwardRef((props, ref) => {
 Reticle.displayName = 'Reticle';
 
 // 3. Scene component (main 3D/AR view)
-function Scene({ modelPath, placedPosition, setPlacedPosition }) {
+// We add a 'key' to force a re-render when the model changes
+function Scene({ modelKey, modelPath, placedPosition, setPlacedPosition }) {
   const { isPresenting } = useXR();
   const reticleRef = useRef();
 
@@ -109,21 +77,23 @@ function Scene({ modelPath, placedPosition, setPlacedPosition }) {
   };
 
   return (
-    <>
+    <Suspense fallback={null} key={modelKey}>
       <ambientLight intensity={1.5} />
       <directionalLight position={[10, 10, 5]} intensity={2} />
-      <Suspense fallback={null}>
         {!isPresenting && (
+          // Desktop/3D Mode
           <>
-            <Model modelPath={modelPath} position={[0, -0.5, 0]} animate={false} />
-            <OrbitControls enablePan={true} enableZoom={true} />
+            {/* We add <Bounds> to auto-center and scale the main model */}
+            <ModelWithControls modelPath={modelPath} />
+            <AdaptiveDpr pixelated />
           </>
         )}
         {isPresenting && (
+          // AR Mode
           <>
             {placedPosition ? (
               <group position={placedPosition}>
-                <Model modelPath={modelPath} animate={false} />
+                <Model modelPath={modelPath} scale={0.01} /> {/* Start AR models very small */}
               </group>
             ) : (
               <Interactive onSelect={onSelect}>
@@ -132,8 +102,39 @@ function Scene({ modelPath, placedPosition, setPlacedPosition }) {
             )}
           </>
         )}
-      </Suspense>
-    </>
+    </Suspense>
+  );
+}
+
+// (NEW) Wrapper for main model to handle controls and centering
+function ModelWithControls({ modelPath }) {
+  const modelRef = useRef();
+  
+  // This hook helps auto-scale and center the main model
+  useEffect(() => {
+    if (modelRef.current) {
+      try {
+        const box = new THREE.Box3().setFromObject(modelRef.current);
+        const center = box.getCenter(new THREE.Vector3());
+        const size = box.getSize(new THREE.Vector3());
+        const maxDim = Math.max(size.x, size.y, size.z);
+        
+        if (maxDim > 0 && Number.isFinite(maxDim)) {
+          const scale = 2.5 / maxDim; // Fit to a 2.5 unit box
+          modelRef.current.scale.set(scale, scale, scale);
+          modelRef.current.position.set(-center.x * scale, -center.y * scale, -center.z * scale);
+        }
+      } catch (e) {
+        console.error("Error scaling main model:", e);
+      }
+    }
+  }, [modelPath]);
+
+  return (
+    <group ref={modelRef}>
+      <Model modelPath={modelPath} />
+      <OrbitControls enablePan={true} enableZoom={true} />
+    </group>
   );
 }
 
@@ -146,14 +147,13 @@ function Thumbnail({ product, isActive, onClick }) {
       onPointerDown={(e) => e.stopPropagation()} 
     >
       <div className="gallery-model-canvas">
-        {/* We wrap the Canvas in our new Error Boundary */}
         <ModelErrorBoundary>
           <Canvas camera={{ position: [0, 0, 1.5], fov: 75 }}>
             <ambientLight intensity={0.8} />
             <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={1} />
             <pointLight position={[-10, -10, -10]} intensity={0.5} />
             <Suspense fallback={null}>
-              <Model modelPath={product.modelPath} animate={false} />
+              <Model modelPath={product.modelPath} />
               <OrbitControls enableZoom={false} enablePan={false} autoRotate speed={0.5} />
             </Suspense>
           </Canvas>
@@ -174,7 +174,6 @@ function App() {
   useEffect(() => {
     axios.get('https://webar-mern-project.onrender.com/api/products')
       .then(response => {
-        console.log('Products fetched:', response.data);
         if (response.data.length === 0) {
           setError('No products found in database.');
         } else {
@@ -183,7 +182,6 @@ function App() {
         }
       })
       .catch(error => {
-        console.error('Error fetching products:', error);
         setError('Failed to fetch products. Check backend.');
       });
   }, []);
@@ -199,30 +197,14 @@ function App() {
   if (!currentProduct) {
     return (
       <div className="center-message">
-        <h1>Loading Product Catalog from Database...</h1>
+        <h1>Loading Product Catalog...</h1>
       </div>
     );
   }
 
   return (
     <div className="app-container">
-      {/* Main 3D Canvas (Base Layer) */}
-      <div id="canvas-container">
-        {/* We wrap the main scene in an error boundary too */}
-        <ModelErrorBoundary>
-          <Canvas camera={{ position: [2, 2, 5], fov: 75 }}>
-            <XR>
-              <Scene
-                modelPath={currentProduct.modelPath}
-                placedPosition={placedPosition}
-                setPlacedPosition={setPlacedPosition}
-              />
-            </XR>
-          </Canvas>
-        </ModelErrorBoundary>
-      </div>
-
-      {/* Gallery (Top Overlay) */}
+      {/* Gallery (Top) */}
       <div className="product-gallery-container">
         {products.map((product) => (
           <Thumbnail
@@ -237,7 +219,23 @@ function App() {
         ))}
       </div>
 
-      {/* Controls (Bottom Overlay) */}
+      {/* Main 3D Canvas (Middle) */}
+      <div id="canvas-container">
+        <ModelErrorBoundary>
+          <Canvas camera={{ position: [2, 2, 5], fov: 75 }}>
+            <XR>
+              <Scene
+                modelKey={currentProduct._id} /* Add key to force re-render */
+                modelPath={currentProduct.modelPath}
+                placedPosition={placedPosition}
+                setPlacedPosition={setPlacedPosition}
+              />
+            </XR>
+          </Canvas>
+        </ModelErrorBoundary>
+      </div>
+
+      {/* Controls (Bottom) */}
       <div className="controls-container">
         <ARButton sessionInit={{ requiredFeatures: ['hit-test'] }} />
         <button
