@@ -2,7 +2,7 @@
 
 import React, { Suspense, useEffect, useState, useRef, forwardRef } from 'react';
 import { Canvas } from '@react-three/fiber';
-// Import <Center> helper and remove useAnimations
+// Import <Center> helper
 import { OrbitControls, useGLTF, AdaptiveDpr, Center } from '@react-three/drei'; 
 import { ARButton, XR, useXR, useHitTest, Interactive } from '@react-three/xr';
 import axios from 'axios';
@@ -34,10 +34,9 @@ class ModelErrorBoundary extends React.Component {
   }
 }
 
-// 1. Model component (SIMPLIFIED - no custom logic)
+// 1. Model component (SIMPLIFIED - NO SCALING LOGIC)
 function Model({ modelPath, ...props }) {
   const { scene } = useGLTF(modelPath);
-  // We use a clone so the main model and thumbnail don't share the same object
   const clonedScene = React.useMemo(() => scene.clone(), [scene]);
   return <primitive object={clonedScene} {...props} />;
 }
@@ -136,7 +135,7 @@ function Thumbnail({ product, isActive, onClick }) {
                 <Model modelPath={product.modelPath} />
               </Center>
               <OrbitControls enableZoom={false} enablePan={false} autoRotate speed={0.5} />
-            </Suspense>
+            </Suspense> 
           </Canvas>
         </ModelErrorBoundary>
       </div>

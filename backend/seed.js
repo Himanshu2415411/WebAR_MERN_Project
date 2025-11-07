@@ -5,14 +5,14 @@ require('dotenv').config();
 
 // --- 1. ADD YOUR NEW MODELS HERE ---
 const productsToSeed = [
-  // --- Your old models ---
+  // --- THIS MODEL WAS CAUSING CRASHES, SO WE ARE REMOVING IT ---
+  // {
+  //   name: "McLaren F1",
+  //   description: "The original car model.",
+  //   modelPath: "/model/scene.gltf"
+  // },
   {
-    name: "McLaren F1",
-    description: "The original car model.",
-    modelPath: "/model/scene.gltf"
-  },
-  {
-    name: "Nissan GTR",
+    name: "Nissan GTR", // This will be the new default model
     description: "A GTR from Poly Pizza.",
     modelPath: "/model/Nissan GTR.glb"
   },
