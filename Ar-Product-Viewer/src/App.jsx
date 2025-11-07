@@ -8,8 +8,34 @@ import axios from 'axios';
 import * as THREE from 'three';
 import './App.css';
 
-// 1. Model component (Fixed for thumbnail scaling)
+// --- (NEW) Error Boundary Component ---
+// This will catch crashes from bad 3D models
+class ModelErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="thumbnail-error">
+          <span>⚠️</span>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+// ------------------------------------
+
+// 1. Model component
 function Model({ modelPath, position = [0, 0, 0], scale = 1, animate = false, ...props }) {
+  // useGLTF.preload(modelPath); // This can help, but let's be safe
   const { scene, animations } = useGLTF(modelPath);
   const clonedScene = React.useMemo(() => scene.clone(), [scene]);
   const { actions } = useAnimations(animations, clonedScene);
@@ -17,29 +43,34 @@ function Model({ modelPath, position = [0, 0, 0], scale = 1, animate = false, ..
 
   useEffect(() => {
     Object.values(actions).forEach(action => {
-      if (animate) {
-        action.play();
-        action.paused = false;
-      } else {
-        action.play();
-        action.paused = true;
-      }
+      action.play();
+      action.paused = !animate; // Simpler logic
     });
   }, [actions, animate]);
 
   useEffect(() => {
-    if (modelRef.current && !animate) { 
-      const box = new THREE.Box3().setFromObject(modelRef.current);
-      const center = box.getCenter(new THREE.Vector3());
-      const size = box.getSize(new THREE.Vector3());
-      const maxDim = Math.max(size.x, size.y, size.z);
-      if (maxDim > 0) { 
-        const desiredScale = 0.8 / maxDim;
+    // This effect runs to center and scale the model
+    if (modelRef.current) {
+      // Use a try...catch block to prevent crashes
+      try {
+        const box = new THREE.Box3().setFromObject(modelRef.current);
+        const center = box.getCenter(new THREE.Vector3());
+        const size = box.getSize(new THREE.Vector3());
+        
+        const maxDim = Math.max(size.x, size.y, size.z);
+        
+        let desiredScale = 1;
+        if (maxDim > 0 && Number.isFinite(maxDim)) { 
+          desiredScale = 0.8 / maxDim; // Scale to fit
+        }
+        
         modelRef.current.scale.set(desiredScale, desiredScale, desiredScale);
         modelRef.current.position.set(-center.x * desiredScale, -center.y * desiredScale, -center.z * desiredScale);
+      } catch (e) {
+        console.error("Error scaling model:", e);
       }
     }
-  }, [clonedScene, animate]);
+  }, [clonedScene, modelPath]); // Re-run when the model changes
 
   return <primitive ref={modelRef} object={clonedScene} {...props} />;
 }
@@ -55,7 +86,7 @@ const Reticle = forwardRef((props, ref) => {
 });
 Reticle.displayName = 'Reticle';
 
-// 3. Scene component (unchanged)
+// 3. Scene component (main 3D/AR view)
 function Scene({ modelPath, placedPosition, setPlacedPosition }) {
   const { isPresenting } = useXR();
   const reticleRef = useRef();
@@ -106,7 +137,7 @@ function Scene({ modelPath, placedPosition, setPlacedPosition }) {
   );
 }
 
-// 4. Thumbnail Component (unchanged)
+// 4. Thumbnail Component
 function Thumbnail({ product, isActive, onClick }) {
   return (
     <div
@@ -115,23 +146,25 @@ function Thumbnail({ product, isActive, onClick }) {
       onPointerDown={(e) => e.stopPropagation()} 
     >
       <div className="gallery-model-canvas">
-        <Canvas camera={{ position: [0, 0, 1.5], fov: 75 }}>
-          <ambientLight intensity={0.8} />
-          <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={1} />
-          <pointLight position={[-10, -10, -10]} intensity={0.5} />
-          <Suspense fallback={null}>
-            <Model modelPath={product.modelPath} animate={false} />
-            <OrbitControls enableZoom={false} enablePan={false} autoRotate speed={0.5} />
-          </Suspense>
-        </Canvas>
+        {/* We wrap the Canvas in our new Error Boundary */}
+        <ModelErrorBoundary>
+          <Canvas camera={{ position: [0, 0, 1.5], fov: 75 }}>
+            <ambientLight intensity={0.8} />
+            <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={1} />
+            <pointLight position={[-10, -10, -10]} intensity={0.5} />
+            <Suspense fallback={null}>
+              <Model modelPath={product.modelPath} animate={false} />
+              <OrbitControls enableZoom={false} enablePan={false} autoRotate speed={0.5} />
+            </Suspense>
+          </Canvas>
+        </ModelErrorBoundary>
       </div>
       <div className="gallery-item-name">{product.name}</div>
     </div>
   );
 }
 
-
-// 5. App component (FIXED)
+// 5. App component
 function App() {
   const [placedPosition, setPlacedPosition] = useState(null);
   const [products, setProducts] = useState([]);
@@ -171,23 +204,25 @@ function App() {
     );
   }
 
-  // This is the new layout
   return (
     <div className="app-container">
-      {/* The Main 3D Canvas is now the base layer */}
+      {/* Main 3D Canvas (Base Layer) */}
       <div id="canvas-container">
-        <Canvas camera={{ position: [2, 2, 5], fov: 75 }}>
-          <XR>
-            <Scene
-              modelPath={currentProduct.modelPath}
-              placedPosition={placedPosition}
-              setPlacedPosition={setPlacedPosition}
-            />
-          </XR>
-        </Canvas>
+        {/* We wrap the main scene in an error boundary too */}
+        <ModelErrorBoundary>
+          <Canvas camera={{ position: [2, 2, 5], fov: 75 }}>
+            <XR>
+              <Scene
+                modelPath={currentProduct.modelPath}
+                placedPosition={placedPosition}
+                setPlacedPosition={setPlacedPosition}
+              />
+            </XR>
+          </Canvas>
+        </ModelErrorBoundary>
       </div>
 
-      {/* The Gallery is an overlay on TOP */}
+      {/* Gallery (Top Overlay) */}
       <div className="product-gallery-container">
         {products.map((product) => (
           <Thumbnail
@@ -202,7 +237,7 @@ function App() {
         ))}
       </div>
 
-      {/* The Controls are an overlay on the BOTTOM */}
+      {/* Controls (Bottom Overlay) */}
       <div className="controls-container">
         <ARButton sessionInit={{ requiredFeatures: ['hit-test'] }} />
         <button
