@@ -132,3 +132,33 @@
   color: #888;
   font-size: 2em;
 }
+/* --- (NEW) AR Scale Controls --- */
+.ar-controls-container {
+  position: absolute;
+  top: 50%;
+  right: 20px;
+  transform: translateY(-50%);
+  z-index: 20; /* On top of everything */
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  pointer-events: none; /* Let touches pass through */
+}
+
+.scale-button {
+  pointer-events: auto; /* Make buttons clickable */
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  color: #000;
+  font-size: 28px;
+  font-weight: bold;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.scale-button:active {
+  background: #ccc;
+}

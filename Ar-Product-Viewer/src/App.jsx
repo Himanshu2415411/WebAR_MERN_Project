@@ -8,7 +8,7 @@ import axios from 'axios';
 import * as THREE from 'three';
 import './App.css';
 
-// --- (NEW) Error Boundary Component ---
+// --- Error Boundary Component (unchanged) ---
 class ModelErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
@@ -30,16 +30,29 @@ class ModelErrorBoundary extends React.Component {
   }
 }
 
-// 1. Model component (SIMPLIFIED TO PREVENT CRASHES)
+// 1. Model component (unchanged)
 function Model({ modelPath, ...props }) {
   const { scene } = useGLTF(modelPath);
-  // We use a clone so that the main model and thumbnail don't share the same object
   const clonedScene = React.useMemo(() => scene.clone(), [scene]);
-  
-  // Note: We've removed the complex scaling logic that was crashing
-  // We will control scale from the <Scene> and <Thumbnail> components
-  
-  return <primitive object={clonedScene} {...props} />;
+  const modelRef = useRef();
+
+  useEffect(() => {
+    if (modelRef.current) {
+      try {
+        const box = new THREE.Box3().setFromObject(modelRef.current);
+        const center = box.getCenter(new THREE.Vector3());
+        const size = box.getSize(new THREE.Vector3());
+        const maxDim = Math.max(size.x, size.y, size.z);
+        if (maxDim > 0 && Number.isFinite(maxDim)) { 
+          const desiredScale = 0.8 / maxDim;
+          modelRef.current.scale.set(desiredScale, desiredScale, desiredScale);
+          modelRef.current.position.set(-center.x * desiredScale, -center.y * desiredScale, -center.z * desiredScale);
+        }
+      } catch (e) { console.error("Error scaling model:", e); }
+    }
+  }, [clonedScene, modelPath]);
+
+  return <primitive ref={modelRef} object={clonedScene} {...props} />;
 }
 
 // 2. Reticle component (unchanged)
@@ -53,9 +66,8 @@ const Reticle = forwardRef((props, ref) => {
 });
 Reticle.displayName = 'Reticle';
 
-// 3. Scene component (main 3D/AR view)
-// We add a 'key' to force a re-render when the model changes
-function Scene({ modelKey, modelPath, placedPosition, setPlacedPosition }) {
+// 3. Scene component (UPDATED: receives arScale)
+function Scene({ modelKey, modelPath, placedPosition, setPlacedPosition, arScale }) {
   const { isPresenting } = useXR();
   const reticleRef = useRef();
 
@@ -83,7 +95,6 @@ function Scene({ modelKey, modelPath, placedPosition, setPlacedPosition }) {
         {!isPresenting && (
           // Desktop/3D Mode
           <>
-            {/* We add <Bounds> to auto-center and scale the main model */}
             <ModelWithControls modelPath={modelPath} />
             <AdaptiveDpr pixelated />
           </>
@@ -92,8 +103,9 @@ function Scene({ modelKey, modelPath, placedPosition, setPlacedPosition }) {
           // AR Mode
           <>
             {placedPosition ? (
-              <group position={placedPosition}>
-                <Model modelPath={modelPath} scale={0.01} /> {/* Start AR models very small */}
+              // Apply the new arScale here
+              <group position={placedPosition} scale={arScale}>
+                <Model modelPath={modelPath} />
               </group>
             ) : (
               <Interactive onSelect={onSelect}>
@@ -106,11 +118,10 @@ function Scene({ modelKey, modelPath, placedPosition, setPlacedPosition }) {
   );
 }
 
-// (NEW) Wrapper for main model to handle controls and centering
+// 4. ModelWithControls component (unchanged)
 function ModelWithControls({ modelPath }) {
   const modelRef = useRef();
   
-  // This hook helps auto-scale and center the main model
   useEffect(() => {
     if (modelRef.current) {
       try {
@@ -118,15 +129,12 @@ function ModelWithControls({ modelPath }) {
         const center = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
         const maxDim = Math.max(size.x, size.y, size.z);
-        
         if (maxDim > 0 && Number.isFinite(maxDim)) {
-          const scale = 2.5 / maxDim; // Fit to a 2.5 unit box
+          const scale = 2.5 / maxDim; 
           modelRef.current.scale.set(scale, scale, scale);
           modelRef.current.position.set(-center.x * scale, -center.y * scale, -center.z * scale);
         }
-      } catch (e) {
-        console.error("Error scaling main model:", e);
-      }
+      } catch (e) { console.error("Error scaling main model:", e); }
     }
   }, [modelPath]);
 
@@ -138,7 +146,7 @@ function ModelWithControls({ modelPath }) {
   );
 }
 
-// 4. Thumbnail Component
+// 5. Thumbnail Component (unchanged)
 function Thumbnail({ product, isActive, onClick }) {
   return (
     <div
@@ -164,12 +172,30 @@ function Thumbnail({ product, isActive, onClick }) {
   );
 }
 
-// 5. App component
-function App() {
+// --- (NEW) AR Scale Controls Component ---
+// This component will be rendered *by* MainExperience
+function ARControls({ setArScale }) {
+  return (
+    <div className="ar-controls-container">
+      <button className="scale-button" onClick={() => setArScale(s => s * 1.5)}>
+        +
+      </button>
+      <button className="scale-button" onClick={() => setArScale(s => s / 1.5)}>
+        -
+      </button>
+    </div>
+  );
+}
+
+// --- (NEW) MainExperience Component ---
+// This wrapper lets us use the useXR hook to show/hide the AR controls
+function MainExperience() {
+  const { isPresenting } = useXR();
   const [placedPosition, setPlacedPosition] = useState(null);
   const [products, setProducts] = useState([]);
   const [error, setError] = useState(null);
   const [currentProduct, setCurrentProduct] = useState(null);
+  const [arScale, setArScale] = useState(1); // <-- New state for AR scale
 
   useEffect(() => {
     axios.get('https://webar-mern-project.onrender.com/api/products')
@@ -185,6 +211,13 @@ function App() {
         setError('Failed to fetch products. Check backend.');
       });
   }, []);
+
+  // When we switch products, reset the scale and placement
+  const selectProduct = (product) => {
+    setCurrentProduct(product);
+    setPlacedPosition(null);
+    setArScale(1); // Reset scale
+  };
 
   if (error) {
     return (
@@ -203,39 +236,29 @@ function App() {
   }
 
   return (
-    <div className="app-container">
-      {/* Gallery (Top) */}
+    <>
+      {/* The main 3D scene is now part of this component */}
+      <Scene
+        modelKey={currentProduct._id}
+        modelPath={currentProduct.modelPath}
+        placedPosition={placedPosition}
+        setPlacedPosition={setPlacedPosition}
+        arScale={arScale} // Pass the scale down
+      />
+
+      {/* Gallery (Top Overlay) - Renders outside the canvas */}
       <div className="product-gallery-container">
         {products.map((product) => (
           <Thumbnail
             key={product._id}
             product={product}
             isActive={currentProduct._id === product._id}
-            onClick={() => {
-              setCurrentProduct(product);
-              setPlacedPosition(null); 
-            }}
+            onClick={selectProduct}
           />
         ))}
       </div>
 
-      {/* Main 3D Canvas (Middle) */}
-      <div id="canvas-container">
-        <ModelErrorBoundary>
-          <Canvas camera={{ position: [2, 2, 5], fov: 75 }}>
-            <XR>
-              <Scene
-                modelKey={currentProduct._id} /* Add key to force re-render */
-                modelPath={currentProduct.modelPath}
-                placedPosition={placedPosition}
-                setPlacedPosition={setPlacedPosition}
-              />
-            </XR>
-          </Canvas>
-        </ModelErrorBoundary>
-      </div>
-
-      {/* Controls (Bottom) */}
+      {/* Controls (Bottom Overlay) - Renders outside the canvas */}
       <div className="controls-container">
         <ARButton sessionInit={{ requiredFeatures: ['hit-test'] }} />
         <button
@@ -244,6 +267,29 @@ function App() {
         >
           Reset
         </button>
+      </div>
+
+      {/* --- NEW AR CONTROLS --- */}
+      {/* Only show these buttons if we are in AR mode */}
+      {isPresenting && <ARControls setArScale={setArScale} />}
+    </>
+  );
+}
+
+// 6. App component (This is now much simpler)
+function App() {
+  return (
+    <div className="app-container">
+      {/* Main 3D Canvas (Base Layer) */}
+      <div id="canvas-container">
+        <ModelErrorBoundary>
+          <Canvas camera={{ position: [2, 2, 5], fov: 75 }}>
+            <XR>
+              {/* MainExperience contains all logic and UI */}
+              <MainExperience />
+            </XR>
+          </Canvas>
+        </ModelErrorBoundary>
       </div>
     </div>
   );
