@@ -10,6 +10,9 @@ The project moves beyond a simple "CRUD" app to show a "spatial computing" engin
 
 **Backend API (Render):** [**https://webar-mern-project.onrender.com/api/products**](https://webar-mern-project.onrender.com/api/products)
 
+https://github.com/user-attachments/assets/9cb9a65f-46d5-4c2e-8520-a4c8696e8e8f
+
+
 > **Note:** The backend is hosted on a free Render plan. It will "spin down" after 15 minutes of inactivity. The **first load will be slow** (it may take 30-60 seconds for the models to appear) as the server "wakes up." This is normal.
 
 ---
