@@ -22,9 +22,7 @@ https://github.com/user-attachments/assets/9cb9a65f-46d5-4c2e-8520-a4c8696e8e8f
 | 3D Gallery (Mobile) | 3D Viewer (Desktop) | AR Mode (Mobile) |
 <img width="1355" height="632" alt="image" src="https://github.com/user-attachments/assets/3942b946-ee65-4169-b613-f474da78bd34" />
 
-![WhatsApp Image 2025-11-10 at 15 13 15_5d4097bf](https://github.com/user-attachments/assets/50d8e7d9-3fea-443d-80b7-1b2b3840dfad)
-
-![WhatsApp Image 2025-11-10 at 15 11 58_ffa0885e](https://github.com/user-attachments/assets/fce20dc7-edf8-4893-a398-0b8cd77646fb)
+<img width="623" height="490" alt="image" src="https://github.com/user-attachments/assets/8b791bd5-6a97-4d63-a202-31fc6acaa81b" />
 
 ---
 
